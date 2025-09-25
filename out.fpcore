@@ -1,0 +1,3 @@
+;; seed: 218164916
+
+(FPCore (lo hi x) :herbie-status imp-start :herbie-time 4389.170654296875 :herbie-error-input ((256 61.99708759895222) (8000 61.99861398657304)) :herbie-error-output ((256 51.874811536640465) (8000 51.93485303917499)) :name "xlohi (overflows)" :precision binary64 :pre (and (< lo -1e+308) (> hi 1e+308)) (* (/ (- x lo) hi) (fma (/ (+ (/ lo hi) 1.0) hi) lo 1.0)))

@@ -1,0 +1,6 @@
+(FPCore (lo hi x)
+  :name "xlohi (overflows)"
+  :pre (and (< lo -1e308) (> hi 1e308))
+  :precision binary64
+  (/ (- x lo) (- hi lo)))
+
