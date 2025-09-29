@@ -146,6 +146,84 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     )
 }
 
+fn reformat(pat: &egg::PatternAst<Math>) -> String {
+    use egg::*;
+
+    let mut v: Vec<String> = Vec::new();
+    for x in pat.as_ref() {
+        match x {
+            ENodeOrVar::Var(var) => {
+                let mut s = var.to_string();
+                s.remove(0);
+                v.push(s);
+            },
+            ENodeOrVar::ENode(Math::Add([x, y])) => v.push(format!("Add({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
+            ENodeOrVar::ENode(Math::Sub([x, y])) => v.push(format!("Sub({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
+            ENodeOrVar::ENode(Math::Mul([x, y])) => v.push(format!("Mul({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
+            ENodeOrVar::ENode(Math::Div([x, y])) => v.push(format!("Div({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
+            ENodeOrVar::ENode(Math::Pow([x, y])) => v.push(format!("Pow({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
+
+            ENodeOrVar::ENode(Math::Neg([x])) => v.push(format!("Neg({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Sqrt([x])) => v.push(format!("Sqrt({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Fabs([x])) => v.push(format!("Fabs({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Ceil([x])) => v.push(format!("Ceil({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Floor([x])) => v.push(format!("Floor({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Round([x])) => v.push(format!("Round({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Log([x])) => v.push(format!("Log({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Cbrt([x])) => v.push(format!("Cbrt({})", &v[usize::from(*x)])),
+            ENodeOrVar::ENode(Math::Constant(cnst)) => {
+                use num_traits::ToPrimitive;
+                let up = cnst.numer().to_i64().unwrap();
+                let down = cnst.denom().to_i64().unwrap();
+                v.push(format!("Num{up}Over{down}"));
+            },
+            ENodeOrVar::ENode(Math::Symbol(symb)) => v.push(symb.to_string().to_ascii_uppercase()),
+            ENodeOrVar::ENode(Math::Other(symb, children)) => {
+                let mut s = symb.to_string().to_ascii_uppercase();
+                if !children.is_empty() {
+                    s.push('(');
+                    for (i, x) in children.iter().enumerate() {
+                        s.push_str(&v[usize::from(*x)]);
+                        if i != children.len() - 1 { s.push(','); }
+                    }
+                    s.push(')');
+                }
+                v.push(s);
+            },
+        }
+    }
+    v.pop().unwrap()
+}
+
+fn run_kbe(c: &Context) {
+    let dir = String::from_utf8(std::process::Command::new("mktemp").arg("-d").output().unwrap().stdout).unwrap();
+    let dir = dir.trim();
+    dbg!(&dir);
+    let rulepath = format!("{dir}/rules.rule");
+    let termpath = format!("{dir}/term.txt");
+
+    let mut s = String::new();
+    for rule in &c.rules {
+        let lhs = reformat(&rule.searcher.get_pattern_ast().unwrap());
+        let rhs = reformat(&rule.applier.get_pattern_ast().unwrap());
+        s.push_str(&format!("{} = {}\n", lhs, rhs));
+    }
+    eprintln!("{s}");
+    std::fs::write(&rulepath, s).unwrap();
+
+    let s = String::from("Ok");
+    std::fs::write(&termpath, s).unwrap();
+
+    let out = std::process::Command::new("../knuth_bendix_egraph/target/release/main")
+        .args(["-r", &rulepath, "-t", &termpath, "-i", "1"])
+        .output().unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    println!("KBE stdout:\n{stdout}");
+    eprintln!("KBE stderr:\n{stderr}");
+    panic!("done!");
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
@@ -160,12 +238,6 @@ pub unsafe extern "C" fn egraph_run(
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context: Box<Context> = Box::from_raw(ptr);
 
-    entrypoint(Args {
-        rules: None,
-        term: None,
-        iterations: 0,
-        positional: Vec::new(),
-    });
 
     if context.runner.stop_reason.is_none() {
         let length: usize = rules_array_length as usize;
@@ -183,6 +255,8 @@ pub unsafe extern "C" fn egraph_run(
 
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
+
+        run_kbe(&context);
 
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
