@@ -3,6 +3,7 @@
 pub mod math;
 
 use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
+use kbo_rust::*;
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -157,7 +158,14 @@ pub unsafe extern "C" fn egraph_run(
     simple_scheduler: bool,
 ) -> *const EGraphIter {
     // Safety: `ptr` was box allocated by `egraph_create`
-    let mut context = Box::from_raw(ptr);
+    let mut context: Box<Context> = Box::from_raw(ptr);
+
+    entrypoint(Args {
+        rules: None,
+        term: None,
+        iterations: 0,
+        positional: Vec::new(),
+    });
 
     if context.runner.stop_reason.is_none() {
         let length: usize = rules_array_length as usize;
