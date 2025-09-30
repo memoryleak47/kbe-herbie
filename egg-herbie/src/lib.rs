@@ -264,6 +264,7 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.with_scheduler(BackoffScheduler::default())
         };
 
+        let now = std::time::Instant::now();
         context.runner = context
             .runner
             .with_node_limit(node_limit as usize)
@@ -277,6 +278,7 @@ pub unsafe extern "C" fn egraph_run(
                 }
             })
             .run(&context.rules);
+        println!("egg time: {}", now.elapsed().as_secs());
     }
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
