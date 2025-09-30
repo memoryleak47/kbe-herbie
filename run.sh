@@ -1,5 +1,5 @@
 #!/bin/bash
 
-make install
+# make install
 
-racket -l herbie improve ex1.fpcore out.fpcore
+racket -l herbie improve bench/tutorial.fpcore out.fpcore

@@ -253,6 +253,13 @@ fn run_kbe(c: &Context) {
     let stderr = String::from_utf8(out.stderr).unwrap();
     // println!("KBE stdout:\n{stdout}");
     // eprintln!("KBE stderr:\n{stderr}");
+
+    if let Some(stdout) = stdout.split("Extracted term:").last() {
+        if let Some(term) = stdout.split("Time elapsed:").next() {
+            let term = term.trim();
+            println!("KBE term: {term}");
+        }
+    }
 }
 
 #[no_mangle]
@@ -287,6 +294,14 @@ pub unsafe extern "C" fn egraph_run(
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
+        {
+            println!("\n==============================================\n");
+            let root = context.runner.roots.last().unwrap();
+            let ex = egg::Extractor::new(&context.runner.egraph, egg::AstSize);
+            let (_, term) = ex.find_best(*root);
+            println!("Input Term: {term}");
+        }
+
         let now = std::time::Instant::now();
         run_kbe(&context);
         println!("kbe time: {}ms", now.elapsed().as_millis());
@@ -312,6 +327,13 @@ pub unsafe extern "C" fn egraph_run(
             })
             .run(&context.rules);
         println!("egg time: {}ms", now.elapsed().as_millis());
+    }
+
+    {
+        let root = context.runner.roots.last().unwrap();
+        let ex = egg::Extractor::new(&context.runner.egraph, egg::AstSize);
+        let (_, term) = ex.find_best(*root);
+        println!("Egg Term: {term}");
     }
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
