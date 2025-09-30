@@ -177,9 +177,9 @@ fn reformat(pat: &egg::PatternAst<Math>) -> String {
                 let down = cnst.denom().to_i64().unwrap();
                 v.push(format!("Num{up}Over{down}"));
             },
-            ENodeOrVar::ENode(Math::Symbol(symb)) => v.push(symb.to_string().to_ascii_uppercase()),
+            ENodeOrVar::ENode(Math::Symbol(symb)) => v.push(fix_symbol(symb.as_str())),
             ENodeOrVar::ENode(Math::Other(symb, children)) => {
-                let mut s = symb.to_string().to_ascii_uppercase();
+                let mut s = fix_symbol(&symb.to_string().to_ascii_uppercase());
                 if !children.is_empty() {
                     s.push('(');
                     for (i, x) in children.iter().enumerate() {
@@ -193,6 +193,15 @@ fn reformat(pat: &egg::PatternAst<Math>) -> String {
         }
     }
     v.pop().unwrap()
+}
+
+fn fix_symbol(s: &str) -> String {
+    s.replace("*", "Mul")
+     .replace(".", "Dot")
+     .replace("-", "Minus")
+     .replace("<", "Lt")
+     .replace(">", "Gt")
+     .replace("=", "Eq")
 }
 
 fn run_kbe(c: &Context) {
@@ -221,7 +230,6 @@ fn run_kbe(c: &Context) {
     let stderr = String::from_utf8(out.stderr).unwrap();
     println!("KBE stdout:\n{stdout}");
     eprintln!("KBE stderr:\n{stderr}");
-    panic!("done!");
 }
 
 #[no_mangle]
