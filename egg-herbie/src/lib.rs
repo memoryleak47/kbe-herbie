@@ -146,53 +146,42 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     )
 }
 
-fn reformat(pat: &egg::PatternAst<Math>) -> String {
-    use egg::*;
+fn reformat_node(node: &Math, v: &[String]) -> String {
+    match node {
+        Math::Add([x, y]) => format!("Add({}, {})", &v[usize::from(*x)], &v[usize::from(*y)]),
+        Math::Sub([x, y]) => format!("Sub({}, {})", &v[usize::from(*x)], &v[usize::from(*y)]),
+        Math::Mul([x, y]) => format!("Mul({}, {})", &v[usize::from(*x)], &v[usize::from(*y)]),
+        Math::Div([x, y]) => format!("Div({}, {})", &v[usize::from(*x)], &v[usize::from(*y)]),
+        Math::Pow([x, y]) => format!("Pow({}, {})", &v[usize::from(*x)], &v[usize::from(*y)]),
 
-    let mut v: Vec<String> = Vec::new();
-    for x in pat.as_ref() {
-        match x {
-            ENodeOrVar::Var(var) => {
-                let mut s = var.to_string();
-                s.remove(0);
-                v.push(s);
-            },
-            ENodeOrVar::ENode(Math::Add([x, y])) => v.push(format!("Add({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
-            ENodeOrVar::ENode(Math::Sub([x, y])) => v.push(format!("Sub({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
-            ENodeOrVar::ENode(Math::Mul([x, y])) => v.push(format!("Mul({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
-            ENodeOrVar::ENode(Math::Div([x, y])) => v.push(format!("Div({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
-            ENodeOrVar::ENode(Math::Pow([x, y])) => v.push(format!("Pow({}, {})", &v[usize::from(*x)], &v[usize::from(*y)])),
-
-            ENodeOrVar::ENode(Math::Neg([x])) => v.push(format!("Neg({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Sqrt([x])) => v.push(format!("Sqrt({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Fabs([x])) => v.push(format!("Fabs({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Ceil([x])) => v.push(format!("Ceil({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Floor([x])) => v.push(format!("Floor({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Round([x])) => v.push(format!("Round({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Log([x])) => v.push(format!("Log({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Cbrt([x])) => v.push(format!("Cbrt({})", &v[usize::from(*x)])),
-            ENodeOrVar::ENode(Math::Constant(cnst)) => {
-                use num_traits::ToPrimitive;
-                let up = cnst.numer().to_i64().unwrap();
-                let down = cnst.denom().to_i64().unwrap();
-                v.push(format!("Num{up}Over{down}"));
-            },
-            ENodeOrVar::ENode(Math::Symbol(symb)) => v.push(fix_symbol(symb.as_str())),
-            ENodeOrVar::ENode(Math::Other(symb, children)) => {
-                let mut s = fix_symbol(&symb.to_string().to_ascii_uppercase());
-                if !children.is_empty() {
-                    s.push('(');
-                    for (i, x) in children.iter().enumerate() {
-                        s.push_str(&v[usize::from(*x)]);
-                        if i != children.len() - 1 { s.push(','); }
-                    }
-                    s.push(')');
+        Math::Neg([x]) => format!("Neg({})", &v[usize::from(*x)]),
+        Math::Sqrt([x]) => format!("Sqrt({})", &v[usize::from(*x)]),
+        Math::Fabs([x]) => format!("Fabs({})", &v[usize::from(*x)]),
+        Math::Ceil([x]) => format!("Ceil({})", &v[usize::from(*x)]),
+        Math::Floor([x]) => format!("Floor({})", &v[usize::from(*x)]),
+        Math::Round([x]) => format!("Round({})", &v[usize::from(*x)]),
+        Math::Log([x]) => format!("Log({})", &v[usize::from(*x)]),
+        Math::Cbrt([x]) => format!("Cbrt({})", &v[usize::from(*x)]),
+        Math::Constant(cnst) => {
+            use num_traits::ToPrimitive;
+            let up = cnst.numer().to_i64().unwrap();
+            let down = cnst.denom().to_i64().unwrap();
+            format!("Num{up}Over{down}")
+        },
+        Math::Symbol(symb) => fix_symbol(symb.as_str()),
+        Math::Other(symb, children) => {
+            let mut s = fix_symbol(&symb.to_string().to_ascii_uppercase());
+            if !children.is_empty() {
+                s.push('(');
+                for (i, x) in children.iter().enumerate() {
+                    s.push_str(&v[usize::from(*x)]);
+                    if i != children.len() - 1 { s.push(','); }
                 }
-                v.push(s);
-            },
-        }
+                s.push(')');
+            }
+            s
+        },
     }
-    v.pop().unwrap()
 }
 
 fn fix_symbol(s: &str) -> String {
@@ -204,23 +193,55 @@ fn fix_symbol(s: &str) -> String {
      .replace("=", "Eq")
 }
 
+fn reformat_pattern(pat: &egg::PatternAst<Math>) -> String {
+    use egg::*;
+
+    let mut v: Vec<String> = Vec::new();
+    for x in pat.as_ref() {
+        match x {
+            ENodeOrVar::Var(var) => {
+                let mut s = var.to_string();
+                s.remove(0);
+                v.push(s);
+            },
+            ENodeOrVar::ENode(n) => {
+                v.push(reformat_node(n, &v));
+            },
+        }
+    }
+    v.pop().unwrap()
+}
+
+fn reformat_term(term: &RecExpr) -> String {
+    use egg::*;
+
+    let mut v: Vec<String> = Vec::new();
+    for n in term.as_ref() {
+        v.push(reformat_node(n, &v));
+    }
+    v.pop().unwrap()
+}
+
 fn run_kbe(c: &Context) {
+    let root = c.runner.roots.last().unwrap();
+    let ex = egg::Extractor::new(&c.runner.egraph, egg::AstSize);
+    let (_, term) = ex.find_best(*root);
+
     let dir = String::from_utf8(std::process::Command::new("mktemp").arg("-d").output().unwrap().stdout).unwrap();
     let dir = dir.trim();
-    dbg!(&dir);
+    println!("directory: {}", &dir);
     let rulepath = format!("{dir}/rules.rule");
     let termpath = format!("{dir}/term.txt");
 
     let mut s = String::new();
     for rule in &c.rules {
-        let lhs = reformat(&rule.searcher.get_pattern_ast().unwrap());
-        let rhs = reformat(&rule.applier.get_pattern_ast().unwrap());
+        let lhs = reformat_pattern(&rule.searcher.get_pattern_ast().unwrap());
+        let rhs = reformat_pattern(&rule.applier.get_pattern_ast().unwrap());
         s.push_str(&format!("{} = {}\n", lhs, rhs));
     }
-    eprintln!("{s}");
     std::fs::write(&rulepath, s).unwrap();
 
-    let s = String::from("Ok");
+    let s = reformat_term(&term);
     std::fs::write(&termpath, s).unwrap();
 
     let out = std::process::Command::new("../knuth_bendix_egraph/target/release/main")
