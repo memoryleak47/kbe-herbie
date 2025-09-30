@@ -3,7 +3,6 @@
 pub mod math;
 
 use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
-use kbo_rust::*;
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -244,13 +243,16 @@ fn run_kbe(c: &Context) {
     let s = reformat_term(&term);
     std::fs::write(&termpath, s).unwrap();
 
+    println!("starting KBE!");
+    println!("../knuth_bendix_egraph/target/release/main -r {rulepath} -t {termpath} -i 1");
     let out = std::process::Command::new("../knuth_bendix_egraph/target/release/main")
         .args(["-r", &rulepath, "-t", &termpath, "-i", "1"])
         .output().unwrap();
+    println!("KBE done!");
     let stdout = String::from_utf8(out.stdout).unwrap();
     let stderr = String::from_utf8(out.stderr).unwrap();
-    println!("KBE stdout:\n{stdout}");
-    eprintln!("KBE stderr:\n{stderr}");
+    // println!("KBE stdout:\n{stdout}");
+    // eprintln!("KBE stderr:\n{stderr}");
 }
 
 #[no_mangle]
@@ -285,7 +287,9 @@ pub unsafe extern "C" fn egraph_run(
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
+        let now = std::time::Instant::now();
         run_kbe(&context);
+        println!("kbe time: {}ms", now.elapsed().as_millis());
 
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
@@ -307,7 +311,7 @@ pub unsafe extern "C" fn egraph_run(
                 }
             })
             .run(&context.rules);
-        println!("egg time: {}", now.elapsed().as_secs());
+        println!("egg time: {}ms", now.elapsed().as_millis());
     }
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
