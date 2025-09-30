@@ -6,7 +6,6 @@ edition = "2021"
 
 [dependencies]
 egg = { git = "https://github.com/egraphs-good/egg.git", rev = "6f2ac1ee72d0ec6b51d12c9ca59e94ada6615e87" }
-kbo_rust = { path = "../../knuth_bendix_egraph" }
 
 log = "0.4"
 indexmap = "1"

@@ -1,8 +1,17 @@
-;; seed: 2053582314
+;; seed: 1609644660
 
-(FPCore (lo hi x)
-  :name "xlohi (overflows)"
+(FPCore (x)
+  :name "Cancel like terms"
   :precision binary64
-  :pre (and (< lo -1e+308) (> hi 1e+308))
-  :spec (/ (- x lo) (- hi lo))
-  (/ 1.0 (- (/ lo (- lo x)) (/ hi (- lo x)))))
+  :spec (- (+ 1.0 x) x)
+  (- (+ 1.0 x) x))
+(FPCore (x)
+  :name "Expanding a square"
+  :precision binary64
+  :spec (- (* (+ x 1.0) (+ x 1.0)) 1.0)
+  (fma x x (+ x x)))
+(FPCore (x y z)
+  :name "Commute and associate"
+  :precision binary64
+  :spec (- (+ (+ x y) z) (+ x (+ y z)))
+  0.0)

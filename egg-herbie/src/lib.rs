@@ -243,12 +243,10 @@ fn run_kbe(c: &Context) {
     let s = reformat_term(&term);
     std::fs::write(&termpath, s).unwrap();
 
-    println!("starting KBE!");
-    println!("../knuth_bendix_egraph/target/release/main -r {rulepath} -t {termpath} -i 1");
+    // println!("../knuth_bendix_egraph/target/release/main -r {rulepath} -t {termpath} -i 1");
     let out = std::process::Command::new("../knuth_bendix_egraph/target/release/main")
         .args(["-r", &rulepath, "-t", &termpath, "-i", "1"])
         .output().unwrap();
-    println!("KBE done!");
     let stdout = String::from_utf8(out.stdout).unwrap();
     let stderr = String::from_utf8(out.stderr).unwrap();
     // println!("KBE stdout:\n{stdout}");
